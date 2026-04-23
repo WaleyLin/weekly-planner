@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base: #0d0f13;
+      --bg-surface: #161820;
+      --bg-card: #1c1f2e;
+      --bg-elevated: #252840;
+      --bg-hover: #2e3150;
+      --accent: #5865f2;
+      --accent-soft: rgba(88,101,242,0.18);
+      --accent-glow: rgba(88,101,242,0.35);
+      --waley: #a78bfa;
+      --jade: #f472b6;
+      --gym: #34d399;
+      --task-bg: #23263a;
+      --task-border: rgba(88,101,242,0.35);
+      --task-text: #c4c7de;
+      --text-primary: #e8eaf0;
+      --text-secondary: #8b8fa8;
+      --text-muted: #4e5266;
+      --border: rgba(255,255,255,0.07);
+      --border-mid: rgba(255,255,255,0.12);
+      --radius-lg: 14px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 20px 24px 40px;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px; padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 14px; }
+    .logo-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 10px var(--accent-glow);
+    }
+    #monthLabel {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px; font-weight: 500;
+      color: var(--text-primary); letter-spacing: -0.3px;
+    }
+
+    /* ── WEATHER + CLOCK (centered absolutely) ── */
+    .topbar-center {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center;
+    }
+    .weather-widget {
+      display: flex; align-items: center; gap: 9px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 6px 14px; border-radius: 10px;
+    }
+    .w-icon { font-size: 18px; line-height: 1; }
+    .w-temp {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px; font-weight: 500; color: var(--text-primary);
+    }
+    .w-desc { font-size: 11px; color: var(--text-muted); }
+    .w-sep { width: 1px; height: 18px; background: var(--border-mid); }
+    .w-clock {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px; font-weight: 500; color: var(--text-secondary);
+      letter-spacing: 0.04em; min-width: 72px;
+    }
+
+    /* ── CONTROLS ── */
+    .controls { display: flex; align-items: center; gap: 6px; }
+    .btn {
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-secondary); padding: 7px 14px; border-radius: 8px;
+      font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 500;
+      cursor: pointer; transition: all 0.15s ease;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-mid); }
+    .btn-icon { padding: 7px 10px; font-size: 14px; }
+    .divider { width: 1px; height: 22px; background: var(--border-mid); margin: 0 4px; }
+
+    #modeToggle {
+      background: var(--bg-elevated); border: 1px solid var(--border-mid);
+      color: var(--text-secondary); padding: 7px 16px; border-radius: 8px;
+      font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 500;
+      cursor: pointer; transition: all 0.2s ease;
+      display: flex; align-items: center; gap: 7px;
+      min-width: 96px; justify-content: center;
+    }
+    #modeToggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+    #modeToggle.edit-active {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent); box-shadow: 0 0 14px var(--accent-glow);
+    }
+    .toggle-icon { font-size: 13px; transition: transform 0.35s ease; display: inline-block; }
+    #modeToggle.edit-active .toggle-icon { transform: rotate(360deg); }
+
+    /* ── WEEKDAY HEADER ── */
+    #weekdayHeader {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 8px; margin-bottom: 8px;
+    }
+    #weekdayHeader div {
+      text-align: center; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-muted); padding: 4px 0;
+    }
+
+    /* ── CALENDAR ── */
+    #calendar {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      opacity: 1; transform: translateY(0);
+    }
+    #calendar.fading { opacity: 0; transform: translateY(8px); pointer-events: none; }
+
+    .day {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 10px;
+      min-height: 130px; display: flex; flex-direction: column; gap: 5px;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+    .day:hover { border-color: var(--border-mid); }
+    .day.today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft) inset; }
+    .day.past { opacity: 0.3; pointer-events: none; }
+    .day.task-drop-over {
+      border-color: var(--accent) !important;
+      background: rgba(88,101,242,0.07) !important;
+      box-shadow: 0 0 0 2px var(--accent-soft) inset !important;
+    }
+
+    .day-number {
+      width: 24px; height: 24px; border-radius: 6px;
+      background: var(--bg-elevated);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-family: 'JetBrains Mono', monospace;
+      font-weight: 500; color: var(--text-secondary); flex-shrink: 0;
+    }
+    .day.today .day-number { background: var(--accent); color: #fff; }
+
+    /* ── EDIT FIELDS ── */
+    .day select, .day input[type="text"] {
+      width: 100%; background: var(--bg-surface); border: 1px solid var(--border);
+      color: var(--text-primary); padding: 4px 7px; border-radius: 6px;
+      font-size: 11px; font-family: 'DM Sans', sans-serif;
+      transition: border-color 0.15s; appearance: none; -webkit-appearance: none;
+    }
+    .day select:focus, .day input[type="text"]:focus { outline: none; border-color: var(--accent); background: var(--bg-elevated); }
+    .day select:hover, .day input[type="text"]:hover { border-color: var(--border-mid); }
+
+    .field-label { font-size: 9px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; margin-top: 2px; }
+    .field-label.lbl-waley { color: var(--waley); opacity: 0.8; }
+    .field-label.lbl-jade  { color: var(--jade);  opacity: 0.8; }
+    .field-label.lbl-gym   { color: var(--gym);   opacity: 0.8; }
+
+    .addTask {
+      background: transparent; border: 1px dashed var(--border-mid);
+      color: var(--text-muted); padding: 3px 6px; border-radius: 5px;
+      font-size: 10px; font-family: 'DM Sans', sans-serif;
+      cursor: pointer; transition: all 0.15s; width: 100%;
+      text-align: left; margin-top: 2px;
+    }
+    .addTask:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+    /* ── TASKS ── */
+    .task-item {
+      font-size: 11px; color: var(--task-text);
+      background: var(--task-bg); border: 1px solid var(--task-border);
+      padding: 4px 8px; border-radius: 6px;
+      cursor: grab; transition: all 0.12s;
+      display: flex; align-items: center; gap: 5px;
+      line-height: 1.3; user-select: none;
+    }
+    .task-item:active { cursor: grabbing; }
+    .task-item .task-dot { color: var(--accent); font-size: 14px; flex-shrink: 0; transition: color 0.12s; }
+    .task-item span.task-txt { flex: 1; }
+    .task-item:hover { border-color: rgba(252,129,129,0.45); background: rgba(229,62,62,0.08); color: #fc8181; }
+    .task-item:hover .task-dot { color: #fc8181; }
+    .task-item.dragging-task { opacity: 0.3; }
+
+    .task-view {
+      font-size: 11px; color: var(--task-text);
+      background: var(--task-bg); border: 1px solid var(--task-border);
+      padding: 4px 8px; border-radius: 6px;
+      display: flex; align-items: center; gap: 5px; line-height: 1.3;
+      cursor: grab; user-select: none;
+    }
+    .task-view:active { cursor: grabbing; }
+    .task-view .task-dot { color: var(--accent); font-size: 14px; flex-shrink: 0; }
+    .task-view.dragging-task { opacity: 0.3; }
+
+    .task-input {
+      width: 100%; background: var(--bg-elevated) !important;
+      border: 1px solid var(--accent) !important;
+      border-radius: 5px; font-size: 10px; padding: 3px 6px;
+    }
+
+    /* ── VIEW CHIPS ── */
+    .info-chip { display: flex; align-items: flex-start; gap: 5px; font-size: 11px; line-height: 1.35; }
+    .chip-label { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; flex-shrink: 0; padding-top: 1px; }
+    .chip-label.waley { color: var(--waley); }
+    .chip-label.jade  { color: var(--jade); }
+    .chip-label.gym   { color: var(--gym); }
+    .chip-val { color: var(--text-secondary); }
+
+    /* ── SECTION HEADER ── */
+    .section-header { display: flex; align-items: center; gap: 10px; margin: 28px 0 12px; }
+    .section-title { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+    .section-line { flex: 1; height: 1px; background: var(--border); }
+
+    /* ── ACTION ITEMS ── */
+    .actions-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+    .action-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+    .action-row:last-child { border-bottom: none; }
+    .drag-icon { color: var(--text-muted); font-size: 14px; cursor: grab; flex-shrink: 0; user-select: none; padding: 0 2px; }
+    .action-input {
+      flex: 1; background: transparent; border: none; color: var(--text-primary);
+      font-size: 13px; font-family: 'DM Sans', sans-serif;
+      padding: 4px 6px; border-radius: 5px; transition: background 0.12s;
+    }
+    .action-input:hover { background: var(--bg-elevated); }
+    .action-input:focus { outline: none; background: var(--bg-elevated); }
+    .action-input::placeholder { color: var(--text-muted); }
+    .action-delete {
+      background: transparent; border: none; color: var(--text-muted);
+      cursor: pointer; font-size: 14px; padding: 2px 5px; border-radius: 4px;
+      opacity: 0; transition: all 0.12s; flex-shrink: 0;
+    }
+    .action-row:hover .action-delete { opacity: 1; }
+    .action-delete:hover { background: rgba(229,62,62,0.15); color: #fc8181; }
+    .add-action-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: transparent; border: 1px dashed var(--border-mid);
+      color: var(--text-muted); font-size: 13px; font-family: 'DM Sans', sans-serif;
+      padding: 8px 12px; border-radius: 8px; cursor: pointer; width: 100%;
+      margin-top: 10px; transition: all 0.15s;
+    }
+    .add-action-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .action-row.dragging { opacity: 0.4; }
+    .action-row.drag-over { border-top: 2px solid var(--accent); }
+    .empty-actions { text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; }
+
+    /* ── DRAG TOOLTIP ── */
+    #dragTooltip {
+      position: fixed; pointer-events: none;
+      background: var(--accent); color: #fff;
+      font-size: 11px; font-family: 'DM Sans', sans-serif;
+      padding: 4px 10px; border-radius: 6px;
+      opacity: 0; transition: opacity 0.1s; z-index: 9999; white-space: nowrap;
+    }
+    #dragTooltip.visible { opacity: 1; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--bg-elevated); border: 1px solid var(--border-mid);
+      color: var(--text-primary); font-size: 13px; font-family: 'DM Sans', sans-serif;
+      padding: 10px 20px; border-radius: 10px;
+      opacity: 0; transition: all 0.25s ease; pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo-dot"></div>
+      <span id="monthLabel"></span>
+    </div>
+
+    <!-- Centered weather + clock -->
+    <div class="topbar-center">
+      <div class="weather-widget">
+        <span class="w-icon" id="weatherIcon">·</span>
+        <span class="w-temp" id="weatherTemp">--°</span>
+        <span class="w-desc" id="weatherDesc">Mesa, AZ</span>
+        <div class="w-sep"></div>
+        <span class="w-clock" id="clock">--:-- --</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-icon" onclick="prevWeek()">←</button>
+      <button class="btn" onclick="goToToday()">Today</button>
+      <button class="btn btn-icon" onclick="nextWeek()">→</button>
+      <div class="divider"></div>
+      <button id="modeToggle" onclick="toggleMode()">
+        <span class="toggle-icon" id="toggleIcon">✏️</span>
+        <span id="modeLabel">Edit</span>
+      </button>
+      <div class="divider"></div>
+      <div style="position:relative;">
+        <button class="btn btn-icon" id="menuDotBtn" onclick="toggleDotMenu(event)" style="font-size:18px; letter-spacing:1px; padding:7px 11px;">···</button>
+        <div id="dotMenu" style="display:none; position:absolute; right:0; top:calc(100% + 8px); background:var(--bg-card); border:1px solid var(--border-mid); border-radius:12px; padding:6px; min-width:160px; box-shadow:0 12px 40px rgba(0,0,0,0.5); z-index:500; flex-direction:column; gap:2px;">
+          <button onclick="closeDotMenu();openCopyModal()" style="width:100%;background:transparent;border:none;color:var(--text-secondary);font-size:13px;font-family:'DM Sans',sans-serif;padding:9px 12px;border-radius:8px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;transition:all 0.12s;" onmouseover="this.style.background='var(--bg-hover)';this.style.color='var(--text-primary)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'"><span>⧉</span> Copy Week</button>
+          <button onclick="closeDotMenu();openClearModal()" style="width:100%;background:transparent;border:none;color:var(--text-secondary);font-size:13px;font-family:'DM Sans',sans-serif;padding:9px 12px;border-radius:8px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;transition:all 0.12s;" onmouseover="this.style.background='var(--bg-hover)';this.style.color='var(--text-primary)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'"><span>✕</span> Clear Week</button>
+          <div style="height:1px;background:var(--border);margin:4px 0;"></div>
+          <button onclick="closeDotMenu();openExportModal()" style="width:100%;background:transparent;border:none;color:var(--text-secondary);font-size:13px;font-family:'DM Sans',sans-serif;padding:9px 12px;border-radius:8px;cursor:pointer;text-align:left;display:flex;align-items:center;gap:9px;transition:all 0.12s;" onmouseover="this.style.background='var(--bg-hover)';this.style.color='var(--text-primary)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-secondary)'"><span>↓</span> Export</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="weekdayHeader"></div>
+  <div id="calendarWrapper">
+    <div id="calendar"></div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-title">Action Items</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="actions-panel">
+    <div id="actionList"></div>
+    <button class="add-action-btn" id="addActionBtn" style="display:none" onclick="addAction()">
+      <span style="font-size:16px;line-height:1">+</span> Add item
+    </button>
+  </div>
+
+  <div id="dragTooltip"></div>
+  <div id="toast"></div>
+
+  <!-- Copy Week Modal -->
+  <div id="copyModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border:1px solid var(--border-mid); border-radius:16px; padding:24px; width:340px; max-width:90vw; box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:500; color:var(--text-primary);">Copy Week</span>
+        <button onclick="closeCopyModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:4px;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">×</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+        <label style="font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);">Copy From</label>
+        <select id="copySrcWeek" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-mid);color:var(--text-primary);padding:8px 10px;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;appearance:none;-webkit-appearance:none;cursor:pointer;"></select>
+        <label style="font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);margin-top:4px;">Copy To</label>
+        <select id="copyDstWeek" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-mid);color:var(--text-primary);padding:8px 10px;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;appearance:none;-webkit-appearance:none;cursor:pointer;"></select>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Copies shifts only — tasks are left untouched.</p>
+      </div>
+      <button onclick="doCopyWeek()" style="width:100%;background:var(--accent);border:none;color:#fff;padding:10px;border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;box-shadow:0 0 16px var(--accent-glow);transition:opacity 0.15s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">⧉ Copy Shifts</button>
+    </div>
+  </div>
+
+  <!-- Clear Week Modal -->
+  <div id="clearModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:10000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border:1px solid var(--border-mid); border-radius:16px; padding:24px; width:380px; max-width:90vw; box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:500; color:var(--text-primary);">Clear Weeks</span>
+        <button onclick="closeClearModal()" style="background:transparent;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:4px;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">×</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+
+        <!-- Mode toggle -->
+        <div style="display:flex; gap:6px;">
+          <button id="clearModeManual" onclick="setClearMode('manual')" style="flex:1;padding:7px;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#fff;font-weight:500;transition:all 0.15s;">Select Weeks</button>
+          <button id="clearModeForward" onclick="setClearMode('forward')" style="flex:1;padding:7px;border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid var(--border-mid);background:var(--bg-surface);color:var(--text-secondary);font-weight:500;transition:all 0.15s;">This Week & Forward</button>
+        </div>
+
+        <!-- Manual: scrollable checklist -->
+        <div id="clearManualSection">
+          <label style="font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:6px;">Pick Weeks</label>
+          <div id="clearWeekList" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding-right:4px;"></div>
+          <button onclick="selectAllClearWeeks()" style="margin-top:8px;background:transparent;border:1px dashed var(--border-mid);color:var(--text-muted);font-size:11px;font-family:'DM Sans',sans-serif;padding:5px 10px;border-radius:6px;cursor:pointer;width:100%;transition:all 0.12s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border-mid)';this.style.color='var(--text-muted)'">Select All</button>
+        </div>
+
+        <!-- Forward: pick start week -->
+        <div id="clearForwardSection" style="display:none;">
+          <label style="font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:6px;">Starting From</label>
+          <select id="clearForwardStart" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-mid);color:var(--text-primary);padding:8px 10px;border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;appearance:none;-webkit-appearance:none;cursor:pointer;"></select>
+          <p style="font-size:11px;color:var(--text-muted);margin-top:6px;">Clears that week and every week after it.</p>
+        </div>
+
+        <!-- What to clear -->
+        <div style="display:flex; gap:14px; padding-top:4px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;"><input type="checkbox" id="clearShifts" checked style="accent-color:var(--accent);"> Shifts</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;"><input type="checkbox" id="clearTasks" style="accent-color:var(--accent);"> Tasks</label>
+        </div>
+        <p style="font-size:11px;color:#fc8181;">This cannot be undone.</p>
+      </div>
+      <button onclick="doClearWeek()" style="width:100%;background:#7f1d1d;border:1px solid rgba(252,129,129,0.3);color:#fc8181;padding:10px;border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='#991b1b'" onmouseout="this.style.background='#7f1d1d'">✕ Clear</button>
+    </div>
+  </div>
+  <div id="exportModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); z-index:10000; display:none; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); border:1px solid var(--border-mid); border-radius:16px; padding:24px; width:340px; max-width:90vw; box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:500; color:var(--text-primary);">Export Weeks</span>
+        <button onclick="closeExportModal()" style="background:transparent; border:none; color:var(--text-muted); font-size:18px; cursor:pointer; line-height:1; padding:2px 6px; border-radius:4px; transition:color 0.15s;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">×</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+        <label style="font-size:11px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:var(--text-muted);">Start Week</label>
+        <select id="exportStartWeek" style="width:100%; background:var(--bg-surface); border:1px solid var(--border-mid); color:var(--text-primary); padding:8px 10px; border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; appearance:none; -webkit-appearance:none; cursor:pointer;"></select>
+        <label style="font-size:11px; font-weight:600; letter-spacing:0.07em; text-transform:uppercase; color:var(--text-muted); margin-top:4px;">Number of Weeks</label>
+        <div style="display:flex; gap:6px;" id="weekCountBtns">
+          <button class="wk-btn wk-active" data-wk="1" onclick="selectWeekCount(1)" style="flex:1; padding:8px; border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; cursor:pointer; border:1px solid var(--accent); background:var(--accent); color:#fff; font-weight:500; transition:all 0.15s;">1 Week</button>
+          <button class="wk-btn" data-wk="2" onclick="selectWeekCount(2)" style="flex:1; padding:8px; border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; cursor:pointer; border:1px solid var(--border-mid); background:var(--bg-surface); color:var(--text-secondary); font-weight:500; transition:all 0.15s;">2 Weeks</button>
+          <button class="wk-btn" data-wk="3" onclick="selectWeekCount(3)" style="flex:1; padding:8px; border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; cursor:pointer; border:1px solid var(--border-mid); background:var(--bg-surface); color:var(--text-secondary); font-weight:500; transition:all 0.15s;">3 Weeks</button>
+          <button class="wk-btn" data-wk="4" onclick="selectWeekCount(4)" style="flex:1; padding:8px; border-radius:8px; font-size:13px; font-family:'DM Sans',sans-serif; cursor:pointer; border:1px solid var(--border-mid); background:var(--bg-surface); color:var(--text-secondary); font-weight:500; transition:all 0.15s;">4 Weeks</button>
+        </div>
+        <div id="exportPreviewLabel" style="font-size:12px; color:var(--text-muted); margin-top:4px; text-align:center;"></div>
+      </div>
+      <button onclick="doExport()" style="width:100%; background:var(--accent); border:none; color:#fff; padding:10px; border-radius:9px; font-size:13px; font-family:'DM Sans',sans-serif; font-weight:600; cursor:pointer; letter-spacing:0.02em; box-shadow:0 0 16px var(--accent-glow); transition:all 0.15s;" onmouseover="this.style.opacity='0.88'" onmouseout="this.style.opacity='1'">↓ Export PNG</button>
+    </div>
+  </div>
+
+  <!-- Hidden export canvas area -->
+  <div id="exportCanvas" style="position:fixed; left:-9999px; top:0; background:#0d0f13; padding:20px; width:1400px;"></div>
+
+  <datalist id="timeOptions">
+    <option value="7:00 AM - 3:00 PM">
+    <option value="7:00 AM - 2:30 PM">
+    <option value="8:00 AM - 4:00 PM">
+    <option value="9:00 AM - 5:00 PM">
+  </datalist>
+
+  <script>
+    const calEl        = document.getElementById("calendar");
+    const monthLabel   = document.getElementById("monthLabel");
+    const weekdayHdr   = document.getElementById("weekdayHeader");
+    const actionList   = document.getElementById("actionList");
+    const addActionBtn = document.getElementById("addActionBtn");
+    const modeToggle   = document.getElementById("modeToggle");
+    const modeLabelEl  = document.getElementById("modeLabel");
+    const toggleIcon   = document.getElementById("toggleIcon");
+    const toast        = document.getElementById("toast");
+    const dragTooltip  = document.getElementById("dragTooltip");
+    const clockEl      = document.getElementById("clock");
+    const weatherIcon  = document.getElementById("weatherIcon");
+    const weatherTemp  = document.getElementById("weatherTemp");
+    const weatherDesc  = document.getElementById("weatherDesc");
+
+    let mode = "view";
+    let draggedTask = null;
+
+    const waleyLocations = ["Rest","PNC","Canes"];
+    const jadeLocations  = ["Break","Petco"];
+    const gymOptions     = ["Rest","Push","Pull","Legs","Shoulders/Arms","Chest/Back","Legs/Abs"];
+
+    /* ══════════════════════════════
+       WEATHER — Open-Meteo (free, no key needed)
+       Mesa, AZ coords: 33.4152, -111.8315
+    ══════════════════════════════ */
+    const WEATHER_CODES = {
+      0:"Clear", 1:"Mostly Clear", 2:"Partly Cloudy", 3:"Overcast",
+      45:"Foggy", 48:"Icy Fog",
+      51:"Light Drizzle", 53:"Drizzle", 55:"Heavy Drizzle",
+      61:"Light Rain", 63:"Rain", 65:"Heavy Rain",
+      71:"Light Snow", 73:"Snow", 75:"Heavy Snow",
+      80:"Showers", 81:"Showers", 82:"Heavy Showers",
+      95:"Thunderstorm", 96:"Stormy", 99:"Severe Storm"
+    };
+    const WEATHER_ICONS = {
+      0:"☀️", 1:"🌤", 2:"⛅", 3:"☁️",
+      45:"🌫", 48:"🌫",
+      51:"🌦", 53:"🌦", 55:"🌧",
+      61:"🌧", 63:"🌧", 65:"🌧",
+      71:"🌨", 73:"❄️", 75:"❄️",
+      80:"🌦", 81:"🌦", 82:"⛈",
+      95:"⛈", 96:"⛈", 99:"⛈"
+    };
+
+    async function fetchWeather() {
+      try {
+        const url = "https://api.open-meteo.com/v1/forecast?latitude=33.4152&longitude=-111.8315&current=temperature_2m,weathercode&temperature_unit=fahrenheit&timezone=America%2FPhoenix";
+        const res = await fetch(url);
+        const data = await res.json();
+        const temp = Math.round(data.current.temperature_2m);
+        const code = data.current.weathercode;
+        weatherIcon.textContent = WEATHER_ICONS[code] || "🌡";
+        weatherTemp.textContent = temp + "°F";
+        weatherDesc.textContent = WEATHER_CODES[code] || "Mesa, AZ";
+      } catch(e) {
+        weatherIcon.textContent = "🌡";
+        weatherTemp.textContent = "--°";
+        weatherDesc.textContent = "Mesa, AZ";
+      }
+    }
+
+    // Fetch on load, refresh every 15 min
+    fetchWeather();
+    setInterval(fetchWeather, 15 * 60 * 1000);
+
+    /* ══════════════════════════════
+       LIVE CLOCK
+    ══════════════════════════════ */
+    function updateClock() {
+      const now = new Date();
+      let h = now.getHours();
+      const m = String(now.getMinutes()).padStart(2,"0");
+      const ampm = h >= 12 ? "PM" : "AM";
+      h = h % 12 || 12;
+      clockEl.textContent = h + ":" + m + " " + ampm;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    /* ══════════════════════════════
+       MODE TOGGLE
+    ══════════════════════════════ */
+    function toggleMode() {
+      calEl.classList.add("fading");
+      setTimeout(() => {
+        mode = mode === "view" ? "edit" : "view";
+        if (mode === "edit") {
+          modeToggle.classList.add("edit-active");
+          modeLabelEl.textContent = "View";
+          toggleIcon.textContent = "👁";
+        } else {
+          modeToggle.classList.remove("edit-active");
+          modeLabelEl.textContent = "Edit";
+          toggleIcon.textContent = "✏️";
+        }
+        addActionBtn.style.display = mode === "edit" ? "flex" : "none";
+        renderCalendar();
+        renderActions();
+        calEl.classList.remove("fading");
+      }, 200);
+    }
+
+    /* ══════════════════════════════
+       DATA
+    ══════════════════════════════ */
+    function getStartOfWeek(d) {
+      const x = new Date(d); x.setDate(x.getDate() - x.getDay()); x.setHours(0,0,0,0); return x;
+    }
+    let startDate = getStartOfWeek(new Date());
+
+    function getData()      { try { return JSON.parse(localStorage.getItem("plannerData")) || {}; } catch(e) { return {}; } }
+    function saveData(d)    { localStorage.setItem("plannerData", JSON.stringify(d)); }
+    function getActions()   { try { return JSON.parse(localStorage.getItem("actions") || "[]"); } catch(e) { return []; } }
+    function saveActions(a) { localStorage.setItem("actions", JSON.stringify(a)); }
+
+    function defaultData(date) {
+      return { youLoc:"Rest", youTime:"", gfLoc:"Break", gfTime:"", gym:"Rest", tasks:[] };
+    }
+    function dateKey(d) { return d.toISOString().split("T")[0]; }
+
+    /* ══════════════════════════════
+       RENDER CALENDAR
+    ══════════════════════════════ */
+    function renderWeekdays() {
+      weekdayHdr.innerHTML = ["SUN","MON","TUE","WED","THU","FRI","SAT"].map(d=>`<div>${d}</div>`).join("");
+    }
+
+    function renderCalendar() {
+      calEl.innerHTML = "";
+      renderWeekdays();
+      const data = getData();
+      const today = new Date(); today.setHours(0,0,0,0);
+      const cur   = new Date(startDate);
+      monthLabel.textContent = cur.toLocaleString('default',{month:'long',year:'numeric'});
+
+      for (let i=0; i<28; i++) {
+        const key = dateKey(cur);
+        if (!data[key]) data[key] = defaultData(cur);
+        const d = data[key];
+
+        const dayDiv = document.createElement("div");
+        dayDiv.className = "day";
+        dayDiv.dataset.key = key;
+
+        const c = new Date(cur); c.setHours(0,0,0,0);
+        if (c < today) dayDiv.classList.add("past");
+        if (c.getTime()===today.getTime()) dayDiv.classList.add("today");
+
+        if (mode==="edit") buildEditDay(dayDiv, key, d, new Date(cur));
+        else               buildViewDay(dayDiv, key, d, new Date(cur));
+
+        // Drop zone for tasks
+        dayDiv.addEventListener("dragover", e => {
+          if (!draggedTask || draggedTask.fromKey===key) return;
+          e.preventDefault();
+          dayDiv.classList.add("task-drop-over");
+        });
+        dayDiv.addEventListener("dragleave", () => dayDiv.classList.remove("task-drop-over"));
+        dayDiv.addEventListener("drop", e => {
+          e.preventDefault();
+          dayDiv.classList.remove("task-drop-over");
+          if (!draggedTask || draggedTask.fromKey===key) return;
+          const nd = getData();
+          nd[draggedTask.fromKey].tasks.splice(draggedTask.taskIndex,1);
+          if (!nd[key].tasks) nd[key].tasks=[];
+          nd[key].tasks.push(draggedTask.text);
+          saveData(nd); draggedTask=null; hideTooltip();
+          renderCalendar();
+        });
+
+        calEl.appendChild(dayDiv);
+        cur.setDate(cur.getDate()+1);
+      }
+      saveData(data);
+    }
+
+    /* ══════════════════════════════
+       BUILD EDIT DAY
+    ══════════════════════════════ */
+    function buildEditDay(dayDiv, key, d, date) {
+      const num = el("div","day-number"); num.textContent = date.getDate();
+      const hasTasks = (d.tasks||[]).filter(t=>t.trim()).length > 0;
+      if (hasTasks && !dayDiv.classList.contains("today")) {
+        num.style.background = "rgba(88,101,242,0.22)";
+        num.style.color = "#a5acf8";
+        num.style.boxShadow = "0 0 0 1px rgba(88,101,242,0.4)";
+      }
+      dayDiv.appendChild(num);
+      dayDiv.append(
+        el("div","field-label lbl-waley","Waley"),
+        makeSelect(waleyLocations, d.youLoc, v=>updateField(key,"youLoc",v)),
+        makeInput(d.youTime,"7:00 AM - 3:00 PM",v=>updateField(key,"youTime",v)),
+        el("div","field-label lbl-jade","Jade"),
+        makeSelect(jadeLocations, d.gfLoc, v=>updateField(key,"gfLoc",v)),
+        makeInput(d.gfTime,"7:00 AM - 3:00 PM",v=>updateField(key,"gfTime",v)),
+        el("div","field-label lbl-gym","Gym"),
+        makeSelect(gymOptions, d.gym, v=>updateField(key,"gym",v))
+      );
+      const taskWrap = el("div","task-wrap");
+      dayDiv.appendChild(taskWrap);
+      renderEditTasks(taskWrap, key, d.tasks);
+
+      const addBtn = el("button","addTask","+ Task");
+      addBtn.onclick = () => {
+        const input = document.createElement("input");
+        input.type="text"; input.className="task-input"; input.placeholder="Add task...";
+        taskWrap.appendChild(input); input.focus();
+        let saved=false;
+        const save=()=>{
+          if(saved)return; saved=true;
+          const val=input.value.trim(); input.remove();
+          if(!val)return;
+          const nd=getData(); if(!nd[key].tasks)nd[key].tasks=[];
+          nd[key].tasks.push(val); saveData(nd); d.tasks=nd[key].tasks;
+          renderEditTasks(taskWrap,key,d.tasks);
+        };
+        input.onkeydown=e=>{ if(e.key==="Enter")save(); if(e.key==="Escape"){saved=true;input.remove();}};
+        input.onblur=save;
+      };
+      dayDiv.appendChild(addBtn);
+    }
+
+    function renderEditTasks(wrap, key, tasks) {
+      const live = wrap.querySelector(".task-input");
+      wrap.innerHTML="";
+      (tasks||[]).forEach((t,i) => {
+        if(!t.trim())return;
+        const div = el("div","task-item");
+        div.draggable=true;
+        div.title="Drag to move · Click to delete";
+        const dot = el("span","task-dot","·");
+        const txt = el("span","task-txt"); txt.textContent=t;
+        div.append(dot,txt);
+        div.addEventListener("dragstart",e=>{
+          draggedTask={fromKey:key,taskIndex:i,text:t};
+          setTimeout(()=>div.classList.add("dragging-task"),0);
+          showTooltip(e,"Drop on another day");
+        });
+        div.addEventListener("dragend",()=>{
+          div.classList.remove("dragging-task"); draggedTask=null; hideTooltip();
+        });
+        div.onclick=()=>{
+          const nd=getData(); nd[key].tasks.splice(i,1); saveData(nd);
+          renderEditTasks(wrap,key,nd[key].tasks);
+        };
+        wrap.appendChild(div);
+      });
+      if(live) wrap.appendChild(live);
+    }
+
+    /* ══════════════════════════════
+       BUILD VIEW DAY
+    ══════════════════════════════ */
+    function buildViewDay(dayDiv, key, d, date) {
+      const num = el("div","day-number"); num.textContent=date.getDate();
+      const hasTasks = (d.tasks||[]).filter(t=>t.trim()).length > 0;
+      if (hasTasks && !dayDiv.classList.contains("today")) {
+        num.style.background = "rgba(88,101,242,0.22)";
+        num.style.color = "#a5acf8";
+        num.style.boxShadow = "0 0 0 1px rgba(88,101,242,0.4)";
+      }
+      dayDiv.appendChild(num);
+      const chip=(cls,lbl,loc,time)=>{
+        const r=el("div","info-chip");
+        r.innerHTML=`<span class="chip-label ${cls}">${lbl}</span><span class="chip-val">${loc}${time?' · '+time:''}</span>`;
+        return r;
+      };
+      dayDiv.appendChild(chip("waley","W",d.youLoc,d.youTime));
+      dayDiv.appendChild(chip("jade","J",d.gfLoc,d.gfTime));
+      dayDiv.appendChild(chip("gym","Gym",d.gym,""));
+      (d.tasks||[]).filter(t=>t.trim()).forEach((t,i)=>{
+        const tv=el("div","task-view"); tv.draggable=true;
+        const dot=el("span","task-dot","·");
+        const txt=el("span",""); txt.textContent=t;
+        tv.append(dot,txt);
+        tv.addEventListener("dragstart",e=>{
+          draggedTask={fromKey:key,taskIndex:i,text:t};
+          setTimeout(()=>tv.classList.add("dragging-task"),0);
+          showTooltip(e,"Drop on another day");
+        });
+        tv.addEventListener("dragend",()=>{
+          tv.classList.remove("dragging-task"); draggedTask=null; hideTooltip();
+        });
+        dayDiv.appendChild(tv);
+      });
+    }
+
+    /* ══════════════════════════════
+       TOOLTIP
+    ══════════════════════════════ */
+    function showTooltip(e,txt){ dragTooltip.textContent=txt; dragTooltip.classList.add("visible"); posTooltip(e); }
+    function posTooltip(e){ dragTooltip.style.left=(e.clientX+16)+"px"; dragTooltip.style.top=(e.clientY-10)+"px"; }
+    function hideTooltip(){ dragTooltip.classList.remove("visible"); }
+    document.addEventListener("mousemove",e=>{ if(draggedTask) posTooltip(e); });
+
+    /* ══════════════════════════════
+       HELPERS
+    ══════════════════════════════ */
+    function updateField(key,f,v){ const nd=getData(); if(nd[key]){nd[key][f]=v;saveData(nd);} }
+    function makeSelect(opts,sel,cb){
+      const s=document.createElement("select");
+      opts.forEach(o=>{const op=document.createElement("option");op.value=o;op.textContent=o;if(o===sel)op.selected=true;s.appendChild(op);});
+      s.onchange=()=>cb(s.value); return s;
+    }
+    function makeInput(val,ph,cb){
+      const i=document.createElement("input"); i.type="text"; i.value=val||""; i.placeholder=ph;
+      i.setAttribute("list","timeOptions"); i.oninput=()=>cb(i.value); return i;
+    }
+    function el(tag,cls,txt){
+      const e=document.createElement(tag);
+      if(cls)e.className=cls;
+      if(txt!==undefined)e.textContent=txt;
+      return e;
+    }
+
+    /* ══════════════════════════════
+       ACTION ITEMS
+    ══════════════════════════════ */
+    function renderActions(){
+      actionList.innerHTML="";
+      const actions=getActions();
+      if(!actions.length){ if(mode!=="edit") actionList.innerHTML='<div class="empty-actions">No action items yet</div>'; return; }
+      actions.forEach((a,i)=>{
+        const row=el("div","action-row"); row.dataset.index=i; row.draggable=mode==="edit";
+        const di=el("span","drag-icon","⠿"); di.style.display=mode==="edit"?"block":"none";
+        const cb=document.createElement("input"); cb.type="checkbox";
+        cb.style.cssText="flex-shrink:0;accent-color:var(--accent);cursor:pointer;width:14px;height:14px;";
+        cb.checked=!!a.done;
+        cb.onchange=()=>{ const arr=getActions(); arr[i].done=cb.checked; saveActions(arr); renderActions(); };
+        const ti=el("input","action-input"); ti.type="text";
+        ti.value=typeof a==="string"?a:(a.text||""); ti.placeholder="Enter action item...";
+        ti.readOnly=mode!=="edit"; if(mode!=="edit")ti.style.pointerEvents="none";
+        if(typeof a==="object"&&a.done){ti.style.textDecoration="line-through";ti.style.opacity="0.45";}
+        ti.oninput=()=>{ const arr=getActions(); if(typeof arr[i]==="string")arr[i]={text:ti.value,done:false}; else arr[i].text=ti.value; saveActions(arr); };
+        const del=el("button","action-delete","×"); del.style.display=mode==="edit"?"block":"none";
+        del.onclick=()=>{ const arr=getActions(); arr.splice(i,1); saveActions(arr); renderActions(); };
+        row.append(di,cb,ti,del);
+        actionList.appendChild(row);
+        if(mode==="edit"){
+          row.ondragstart=e=>{e.dataTransfer.setData("text/plain",i);setTimeout(()=>row.classList.add("dragging"),0);};
+          row.ondragend=()=>row.classList.remove("dragging");
+          row.ondragover=e=>{e.preventDefault();row.classList.add("drag-over");};
+          row.ondragleave=()=>row.classList.remove("drag-over");
+          row.ondrop=e=>{
+            e.preventDefault(); row.classList.remove("drag-over");
+            const from=parseInt(e.dataTransfer.getData("text/plain")),to=parseInt(row.dataset.index);
+            if(from===to)return;
+            const arr=getActions(); const[item]=arr.splice(from,1); arr.splice(to,0,item); saveActions(arr); renderActions();
+          };
+        }
+      });
+    }
+
+    function addAction(){
+      const arr=getActions(); arr.push({text:"",done:false}); saveActions(arr); renderActions();
+      setTimeout(()=>{ const inputs=actionList.querySelectorAll(".action-input"); const last=inputs[inputs.length-1];
+        if(last){last.readOnly=false;last.style.pointerEvents="auto";last.focus();}},0);
+    }
+
+    /* ══════════════════════════════
+       EXPORT MODAL
+    ══════════════════════════════ */
+    let exportWeekCount = 1;
+
+    function openExportModal() {
+      const modal = document.getElementById("exportModal");
+      modal.style.display = "flex";
+      populateStartWeeks();
+      updateExportPreview();
+    }
+
+    function closeExportModal() {
+      document.getElementById("exportModal").style.display = "none";
+    }
+
+    document.getElementById("exportModal").addEventListener("click", function(e) {
+      if (e.target === this) closeExportModal();
+    });
+
+    function populateStartWeeks() {
+      const sel = document.getElementById("exportStartWeek");
+      sel.innerHTML = "";
+      // Offer current week ± 8 weeks
+      const base = getStartOfWeek(new Date());
+      for (let i = -2; i <= 8; i++) {
+        const d = new Date(base);
+        d.setDate(d.getDate() + i * 7);
+        const end = new Date(d); end.setDate(end.getDate() + 6);
+        const fmt = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+        const opt = document.createElement("option");
+        opt.value = d.toISOString().split("T")[0];
+        opt.textContent = `${fmt(d)} – ${fmt(end)}`;
+        if (i === 0) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      sel.onchange = updateExportPreview;
+    }
+
+    function selectWeekCount(n) {
+      exportWeekCount = n;
+      document.querySelectorAll(".wk-btn").forEach(b => {
+        const active = parseInt(b.dataset.wk) === n;
+        b.style.background = active ? "var(--accent)" : "var(--bg-surface)";
+        b.style.borderColor = active ? "var(--accent)" : "var(--border-mid)";
+        b.style.color = active ? "#fff" : "var(--text-secondary)";
+      });
+      updateExportPreview();
+    }
+
+    function updateExportPreview() {
+      const sel = document.getElementById("exportStartWeek");
+      const startStr = sel.value;
+      if (!startStr) return;
+      const start = new Date(startStr + "T00:00:00");
+      const end = new Date(start);
+      end.setDate(end.getDate() + exportWeekCount * 7 - 1);
+      const fmt = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      document.getElementById("exportPreviewLabel").textContent =
+        `Exporting ${fmt(start)} – ${fmt(end)} (${exportWeekCount * 7} days)`;
+    }
+
+    function doExport() {
+      const sel = document.getElementById("exportStartWeek");
+      const startStr = sel.value;
+      if (!startStr) return;
+
+      const exportStart = new Date(startStr + "T00:00:00");
+      const numWeeks = exportWeekCount;
+      const data = getData();
+      const today = new Date(); today.setHours(0,0,0,0);
+
+      // Build the export DOM
+      const canvas = document.getElementById("exportCanvas");
+      canvas.innerHTML = "";
+
+      // Title bar
+      const titleBar = document.createElement("div");
+      titleBar.style.cssText = "display:flex; align-items:center; gap:10px; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,0.08);";
+      const dot = document.createElement("div");
+      dot.style.cssText = "width:8px; height:8px; border-radius:50%; background:#5865f2; box-shadow:0 0 10px rgba(88,101,242,0.35); flex-shrink:0;";
+      const lbl = document.createElement("span");
+      const fmtD = d => d.toLocaleDateString('en-US', {month:'long', day:'numeric'});
+      const endDate = new Date(exportStart); endDate.setDate(endDate.getDate() + numWeeks * 7 - 1);
+      lbl.style.cssText = "font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:500; color:#e8eaf0; letter-spacing:-0.3px;";
+      lbl.textContent = `${fmtD(exportStart)} – ${fmtD(endDate)}`;
+      titleBar.append(dot, lbl);
+      canvas.appendChild(titleBar);
+
+      const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+      for (let w = 0; w < numWeeks; w++) {
+        const weekStart = new Date(exportStart);
+        weekStart.setDate(weekStart.getDate() + w * 7);
+        const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6);
+        const fmt2 = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+
+        // Week label row
+        const weekHeader = document.createElement("div");
+        weekHeader.style.cssText = "display:flex; align-items:center; gap:10px; margin-bottom:8px;" + (w > 0 ? "margin-top:24px;" : "");
+        const wlbl = document.createElement("span");
+        wlbl.style.cssText = "font-size:10px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:#4e5266; white-space:nowrap;";
+        wlbl.textContent = `${fmt2(weekStart)} – ${fmt2(weekEnd)}`;
+        const wline = document.createElement("div");
+        wline.style.cssText = "flex:1; height:1px; background:rgba(255,255,255,0.06);";
+        weekHeader.append(wlbl, wline);
+        canvas.appendChild(weekHeader);
+
+        // Day-of-week header (Sun–Sat)
+        const dayHdrRow = document.createElement("div");
+        dayHdrRow.style.cssText = "display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:6px;";
+        DAYS.forEach(name => {
+          const dh = document.createElement("div");
+          dh.style.cssText = "text-align:center; font-size:10px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#4e5266; padding:3px 0;";
+          dh.textContent = name.slice(0,3).toUpperCase();
+          dayHdrRow.appendChild(dh);
+        });
+        canvas.appendChild(dayHdrRow);
+
+        // Day cells
+        const grid = document.createElement("div");
+        grid.style.cssText = "display:grid; grid-template-columns:repeat(7,1fr); gap:8px;";
+
+        for (let i = 0; i < 7; i++) {
+          const cur = new Date(weekStart);
+          cur.setDate(cur.getDate() + i);
+          const key = cur.toISOString().split("T")[0];
+          const d = data[key] || {youLoc:"",youTime:"",gfLoc:"",gfTime:"",gym:"",tasks:[]};
+
+          const cell = document.createElement("div");
+          const isToday = cur.getTime() === today.getTime();
+          const isPast = cur < today;
+          cell.style.cssText = `background:#1c1f2e; border:1px solid ${isToday ? '#5865f2' : 'rgba(255,255,255,0.07)'}; border-radius:14px; padding:10px; min-height:130px; display:flex; flex-direction:column; gap:5px; ${isPast ? 'opacity:0.35;' : ''}`;
+
+          const num = document.createElement("div");
+          num.style.cssText = `width:24px; height:24px; border-radius:6px; background:${isToday ? '#5865f2' : '#252840'}; display:flex; align-items:center; justify-content:center; font-size:11px; font-family:'JetBrains Mono',monospace; font-weight:500; color:${isToday ? '#fff' : '#8b8fa8'}; flex-shrink:0;`;
+          num.textContent = cur.getDate();
+          cell.appendChild(num);
+
+          const chip = (colorHex, label, val, time) => {
+            if (!val && !time) return null;
+            const r = document.createElement("div");
+            r.style.cssText = "display:flex; align-items:flex-start; gap:5px; font-size:11px; line-height:1.35;";
+            const lspan = document.createElement("span");
+            lspan.style.cssText = `font-size:9px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; flex-shrink:0; padding-top:1px; color:${colorHex};`;
+            lspan.textContent = label;
+            const vspan = document.createElement("span");
+            vspan.style.cssText = "color:#8b8fa8;";
+            vspan.textContent = val + (time ? ' · ' + time : '');
+            r.append(lspan, vspan);
+            return r;
+          };
+
+          const wChip = chip("#a78bfa","W",d.youLoc,d.youTime);
+          const jChip = chip("#f472b6","J",d.gfLoc,d.gfTime);
+          const gChip = chip("#34d399","Gym",d.gym,"");
+          if (wChip) cell.appendChild(wChip);
+          if (jChip) cell.appendChild(jChip);
+          if (gChip) cell.appendChild(gChip);
+
+          (d.tasks||[]).filter(t=>t&&t.trim()).forEach(t => {
+            const tv = document.createElement("div");
+            tv.style.cssText = "font-size:11px; color:#c4c7de; background:#23263a; border:1px solid rgba(88,101,242,0.35); padding:4px 8px; border-radius:6px; display:flex; align-items:center; gap:5px; line-height:1.3;";
+            const dot2 = document.createElement("span");
+            dot2.style.cssText = "color:#5865f2; font-size:14px; flex-shrink:0;";
+            dot2.textContent = "·";
+            const txt = document.createElement("span");
+            txt.textContent = t;
+            tv.append(dot2, txt);
+            cell.appendChild(tv);
+          });
+
+          grid.appendChild(cell);
+        }
+        canvas.appendChild(grid);
+      }
+
+      // Capture it
+      const exportBtn = document.querySelector("[onclick='doExport()']");
+      const origTxt = exportBtn.innerHTML;
+      exportBtn.innerHTML = "⏳ Exporting...";
+      exportBtn.disabled = true;
+
+      setTimeout(() => {
+        html2canvas(canvas, {
+          backgroundColor: "#0d0f13", scale: 2, useCORS: true, logging: false
+        }).then(c => {
+          const link = document.createElement("a");
+          const d = exportStart.toLocaleDateString('en-US',{month:'short',day:'numeric'}).replace(/ /g,"-");
+          link.download = `planner-${d}-${numWeeks}wk.png`;
+          link.href = c.toDataURL("image/png");
+          link.click();
+          exportBtn.innerHTML = origTxt;
+          exportBtn.disabled = false;
+          closeExportModal();
+          showToast("📸 Saved to Downloads!");
+          canvas.innerHTML = "";
+        }).catch(() => {
+          exportBtn.innerHTML = origTxt;
+          exportBtn.disabled = false;
+        });
+      }, 100);
+    }
+
+    function exportImage(){
+      openExportModal();
+    }
+
+    function showToast(msg){ toast.textContent=msg; toast.classList.add("show"); setTimeout(()=>toast.classList.remove("show"),2800); }
+
+    /* ══════════════════════════════
+       NAV
+    ══════════════════════════════ */
+    function nextWeek(){ startDate.setDate(startDate.getDate()+7); renderCalendar(); }
+    function prevWeek(){ startDate.setDate(startDate.getDate()-7); renderCalendar(); }
+    function goToToday(){ startDate=getStartOfWeek(new Date()); renderCalendar(); }
+
+    /* ══════════════════════════════
+       COPY WEEK MODAL
+    ══════════════════════════════ */
+    function buildWeekOptions(selEl, defaultOffset = 0) {
+      selEl.innerHTML = "";
+      const base = getStartOfWeek(new Date());
+      const fmt = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      for (let i = -4; i <= 12; i++) {
+        const d = new Date(base); d.setDate(d.getDate() + i * 7);
+        const end = new Date(d); end.setDate(end.getDate() + 6);
+        const opt = document.createElement("option");
+        opt.value = d.toISOString().split("T")[0];
+        opt.textContent = `${fmt(d)} – ${fmt(end)}`;
+        if (i === defaultOffset) opt.selected = true;
+        selEl.appendChild(opt);
+      }
+    }
+
+    function openCopyModal() {
+      const modal = document.getElementById("copyModal");
+      modal.style.display = "flex";
+      buildWeekOptions(document.getElementById("copySrcWeek"), 0);
+      buildWeekOptions(document.getElementById("copyDstWeek"), 1);
+    }
+    function closeCopyModal() { document.getElementById("copyModal").style.display = "none"; }
+    document.getElementById("copyModal").addEventListener("click", function(e){ if(e.target===this) closeCopyModal(); });
+
+    function doCopyWeek() {
+      const srcStr = document.getElementById("copySrcWeek").value;
+      const dstStr = document.getElementById("copyDstWeek").value;
+      if (!srcStr || !dstStr || srcStr === dstStr) { showToast("⚠️ Pick two different weeks"); return; }
+      const srcStart = new Date(srcStr + "T00:00:00");
+      const dstStart = new Date(dstStr + "T00:00:00");
+      const data = getData();
+      for (let i = 0; i < 7; i++) {
+        const s = new Date(srcStart); s.setDate(s.getDate() + i);
+        const d = new Date(dstStart); d.setDate(d.getDate() + i);
+        const sKey = dateKey(s), dKey = dateKey(d);
+        const src = data[sKey];
+        if (src) {
+          if (!data[dKey]) data[dKey] = defaultData(d);
+          data[dKey].youLoc  = src.youLoc;
+          data[dKey].youTime = src.youTime;
+          data[dKey].gfLoc   = src.gfLoc;
+          data[dKey].gfTime  = src.gfTime;
+          data[dKey].gym     = src.gym;
+        }
+      }
+      saveData(data);
+      // Jump to destination week
+      startDate = new Date(dstStart);
+      renderCalendar();
+      closeCopyModal();
+      showToast("📋 Shifts copied!");
+    }
+
+    /* ══════════════════════════════
+       DOT MENU
+    ══════════════════════════════ */
+    function toggleDotMenu(e) {
+      e.stopPropagation();
+      const menu = document.getElementById("dotMenu");
+      const isOpen = menu.style.display === "flex";
+      menu.style.display = isOpen ? "none" : "flex";
+    }
+    function closeDotMenu() { document.getElementById("dotMenu").style.display = "none"; }
+    document.addEventListener("click", () => closeDotMenu());
+    document.getElementById("dotMenu").addEventListener("click", e => e.stopPropagation());
+
+    /* ══════════════════════════════
+       CLEAR WEEK MODAL
+    ══════════════════════════════ */
+    let clearMode = "manual";
+
+    function openClearModal() {
+      document.getElementById("clearModal").style.display = "flex";
+      setClearMode("manual");
+      buildClearWeekList();
+      buildWeekOptions(document.getElementById("clearForwardStart"), 0);
+    }
+    function closeClearModal() { document.getElementById("clearModal").style.display = "none"; }
+    document.getElementById("clearModal").addEventListener("click", function(e){ if(e.target===this) closeClearModal(); });
+
+    function setClearMode(m) {
+      clearMode = m;
+      const manBtn = document.getElementById("clearModeManual");
+      const fwdBtn = document.getElementById("clearModeForward");
+      const manSec = document.getElementById("clearManualSection");
+      const fwdSec = document.getElementById("clearForwardSection");
+      const on  = "border:1px solid var(--accent);background:var(--accent);color:#fff;";
+      const off = "border:1px solid var(--border-mid);background:var(--bg-surface);color:var(--text-secondary);";
+      manBtn.style.cssText += m === "manual" ? on : off;
+      fwdBtn.style.cssText += m === "forward" ? on : off;
+      manSec.style.display = m === "manual"  ? "block" : "none";
+      fwdSec.style.display = m === "forward" ? "block" : "none";
+    }
+
+    function buildClearWeekList() {
+      const list = document.getElementById("clearWeekList");
+      list.innerHTML = "";
+      const base = getStartOfWeek(new Date());
+      const fmt = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      for (let i = -4; i <= 12; i++) {
+        const d = new Date(base); d.setDate(d.getDate() + i * 7);
+        const end = new Date(d); end.setDate(end.getDate() + 6);
+        const key = d.toISOString().split("T")[0];
+        const row = document.createElement("label");
+        row.style.cssText = "display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);cursor:pointer;padding:6px 8px;border-radius:6px;transition:background 0.12s;";
+        row.onmouseover = () => row.style.background = "var(--bg-elevated)";
+        row.onmouseout  = () => row.style.background = "transparent";
+        const cb = document.createElement("input");
+        cb.type = "checkbox"; cb.value = key;
+        cb.style.cssText = "accent-color:var(--accent);flex-shrink:0;";
+        // Pre-check current week
+        if (i === 0) cb.checked = true;
+        const span = document.createElement("span");
+        span.textContent = `${fmt(d)} – ${fmt(end)}`;
+        row.append(cb, span);
+        list.appendChild(row);
+      }
+    }
+
+    function selectAllClearWeeks() {
+      document.querySelectorAll("#clearWeekList input[type=checkbox]").forEach(cb => cb.checked = true);
+    }
+
+    function doClearWeek() {
+      const clearShifts = document.getElementById("clearShifts").checked;
+      const clearTasks  = document.getElementById("clearTasks").checked;
+      if (!clearShifts && !clearTasks) { showToast("⚠️ Pick at least one thing to clear"); return; }
+
+      let weekStarts = [];
+
+      if (clearMode === "manual") {
+        document.querySelectorAll("#clearWeekList input[type=checkbox]:checked").forEach(cb => {
+          weekStarts.push(new Date(cb.value + "T00:00:00"));
+        });
+        if (!weekStarts.length) { showToast("⚠️ Select at least one week"); return; }
+      } else {
+        const fromStr = document.getElementById("clearForwardStart").value;
+        const from = new Date(fromStr + "T00:00:00");
+        // Clear from that week up to 16 weeks out
+        for (let i = 0; i < 16; i++) {
+          const d = new Date(from); d.setDate(d.getDate() + i * 7);
+          weekStarts.push(d);
+        }
+      }
+
+      const data = getData();
+      weekStarts.forEach(weekStart => {
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(weekStart); d.setDate(d.getDate() + i);
+          const key = dateKey(d);
+          if (!data[key]) data[key] = defaultData(d);
+          if (clearShifts) {
+            data[key].youLoc = "Rest"; data[key].youTime = "";
+            data[key].gfLoc  = "Break"; data[key].gfTime = "";
+            data[key].gym    = "Rest";
+          }
+          if (clearTasks) data[key].tasks = [];
+        }
+      });
+
+      saveData(data);
+      renderCalendar();
+      closeClearModal();
+      const count = clearMode === "forward" ? "all weeks forward" : `${weekStarts.length} week${weekStarts.length>1?"s":""}`;
+      showToast(`🗑️ Cleared ${count}!`);
+    }
+
+    // Init
+    renderCalendar();
+    renderActions();
+  </script>
+</body>
+</html>
