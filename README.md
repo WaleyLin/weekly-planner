@@ -1,4 +1,4 @@
-# 📅 Weekly Planner
+# Weekly Planner
 
 A personal weekly planner built with vanilla HTML, CSS, and JavaScript. Designed for tracking work schedules, gym routines, and daily tasks — all saved locally in the browser with no backend required.
 
